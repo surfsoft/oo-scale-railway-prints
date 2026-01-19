@@ -3,17 +3,13 @@
 // the outer sheets of a Metcalfe platform kit to create platforms of any length
 //
 // TODO on the current platform section
-// - Add optional location pin and framework socket so that the platform can be accurately located on the baseboard withput gluing down
-// - Add optional area where a PCB could be fixed
-// - Add optional cable fixing point
-// - Add optional subway stairs framing
+// - Add optional area where a PCB could be fixed, include a cable strain relief
 //
 // Other components to add
 // - Create a platform ramp with wedge sides (bottom narrower than the top, but straight sided)
-// - Create a platform ramp made up of two different halves, a half can be straight or curved, and the centreline between tehm isn't necessarily in the middle
-// - Create a version of the straight platform which has a different width at each end
+// - Create a platform ramp where one or both sides can be curved, by specifying by a radius
 
-$fn=9;
+$fn=90;
 
 trackBedHeight = 5;
 wallHeight = 15;
@@ -27,6 +23,7 @@ aspectSleeveInnerWidth = 13.5;
 aspectSleeveInnerLength = 21.5;
 aspectSleeveOuterWidth = aspectSleeveInnerWidth + 4;
 aspectSleeveOuterLength = aspectSleeveInnerLength + 4;
+locationScrewDiameter = 4;
 
 module cubeWithVoid(width, depth, height) {
     difference() {
@@ -59,6 +56,19 @@ module lampMount(platformInnerWidth, supportWidth = 2, supportAdjustmentLeft = 0
 
 }
 
+module subwayMount(subwayLength, subwayWidth, platformInnerWidth, supportWidth = 2, hasLamp = false) {
+    
+    cube([subwayLength, subwayWidth, overallHeight], center = true);
+    if (!hasLamp) {
+        supporLength = (platformInnerWidth - subwayWidth) / 2;
+        echo(supportWidth);
+        translate([0, (supporLength + subwayWidth) / 2, 0]) cubeWithVoid(supportWidth, supporLength + 0.5, overallHeight);
+        translate([0, -(supporLength + subwayWidth) / 2, 0]) cubeWithVoid(supportWidth, supporLength + 0.5, overallHeight);
+    }
+    
+}
+
+
 module aspectSignalMount() {
     difference() {
         cube([aspectSleeveOuterLength, aspectSleeveOuterWidth, overallHeight], center = true);
@@ -66,12 +76,38 @@ module aspectSignalMount() {
     }
 }
 
-module platformStraight(platformLength, platformWidth, hasLamp = false, hasLocationPin = false, hasAspectSignal = "", widthAdjustmentLeft = 0, widthAdjustmentRight = 0) {
+module platformStraight(
+    platformLength, 
+    platformWidth, 
+    hasLamp = false, 
+    hasAspectSignal = "", 
+    hasLocationPin = false, 
+    hasPcbMount = false, // TODO
+    hasSubway = false,
+    widthAdjustmentLeft = 0, 
+    widthAdjustmentRight = 0) {
     
     leftAngle = widthAdjustmentLeft == 0 ? 0 : atan(widthAdjustmentLeft / platformLength);
     leftLength = widthAdjustmentLeft == 0 ? platformLength : sqrt(pow(widthAdjustmentLeft, 2) + pow(platformLength, 2)) - 1;
     rightAngle = widthAdjustmentRight == 0 ? 0 : atan(widthAdjustmentRight / platformLength);
     rightLength = widthAdjustmentRight == 0 ? platformLength : sqrt(pow(widthAdjustmentRight, 2) + pow(platformLength, 2)) - 1;
+    platformInnerWidth = platformWidth - 3;
+    supportSpacing = floor(tan(supportAngle) * platformInnerWidth);
+    supportCount = (platformLength / 2) / supportSpacing;
+
+    locationPinLength = 20;
+    locationPinWidth = 20;
+    locationPinHeight = overallHeight / 2;
+    locationPinX = platformLength / 4;
+    locationPinY = ((platformWidth - locationPinWidth) / 2) - platformSideWidth - (widthAdjustmentLeft * 0.75) ;
+    locationPinZ = -(overallHeight - locationPinHeight) / 2;
+        
+    subwayInnerLength = 51;
+    subwayLength = subwayInnerLength + 4;
+    subwayInnerWidth = 27.5;
+    subwayWidth = subwayInnerWidth + 4;
+    subwayPositionX = hasLamp ? subwayLength / 2 + 5 : 0;
+    subwayPositionY = 0;
 
     aspectAngle = hasAspectSignal == "left" ? leftAngle : rightAngle;
     aspectSignalYPosition = hasAspectSignal == "left" ? (platformWidth - aspectSleeveOuterWidth) / 2 - 1 : - (platformWidth - aspectSleeveOuterWidth) / 2 + 1;
@@ -84,9 +120,6 @@ module platformStraight(platformLength, platformWidth, hasLamp = false, hasLocat
             translate([-(platformLength - platformEndWidth) / 2, 0, 0]) platformEnd(platformWidth);
             translate([(platformLength - platformEndWidth) / 2, (widthAdjustmentLeft - widthAdjustmentRight) / 2, 0]) platformEnd(platformWidth + widthAdjustmentLeft + widthAdjustmentRight);    
     
-            platformInnerWidth = platformWidth - 3;
-            supportSpacing = floor(tan(supportAngle) * platformInnerWidth);
-            supportCount = (platformLength / 2) / supportSpacing;
 
             if (supportCount > 1) for(index = [0 : supportCount - 1]) {
 
@@ -119,14 +152,46 @@ module platformStraight(platformLength, platformWidth, hasLamp = false, hasLocat
             }
 
 
-            if (hasLamp) lampMount(platformWidth - 4, supportAdjustmentLeft = widthAdjustmentLeft, supportAdjustmentRight = widthAdjustmentRight);
+            if (hasLamp) {
+                 lampMount(platformWidth - 4, supportAdjustmentLeft = widthAdjustmentLeft, supportAdjustmentRight = widthAdjustmentRight);
+            }
         
             if (hasAspectSignal == "left" || hasAspectSignal == "right") {
                 translate([-(platformLength - aspectSleeveOuterLength) / 2 + 1, aspectSignalYPosition, 0]) rotate([0, 0, aspectAngle]) aspectSignalMount();
             }
+            
+            if (hasLocationPin) {
+                translate ([locationPinX, locationPinY, locationPinZ]) cube([locationPinLength + 4, locationPinWidth + 4, locationPinHeight], center = true);
+            }
+
+            if (hasSubway) {
+                translate ([subwayPositionX, subwayPositionY, 0]) subwayMount(subwayLength, subwayWidth, platformInnerWidth, hasLamp = hasLamp);
+            }
+
         }
-        translate([-(platformLength - aspectSleeveOuterLength) / 2 + 1, aspectSignalYPosition, 0]) rotate([0, 0, aspectAngle]) cube([aspectSleeveInnerLength, aspectSleeveInnerWidth, overallHeight], center = true);
+        
+        if (hasAspectSignal != "") {
+            translate([-(platformLength - aspectSleeveOuterLength) / 2 + 1, aspectSignalYPosition, 0]) rotate([0, 0, aspectAngle]) cube([aspectSleeveInnerLength, aspectSleeveInnerWidth, overallHeight], center = true);
+        }
+            
+        if (hasLocationPin) {
+            translate ([locationPinX, locationPinY, locationPinZ]) cube([locationPinLength, locationPinWidth, locationPinHeight], center = true);
+        }
+
+        if (hasSubway) {
+            translate ([subwayPositionX, subwayPositionY, 0]) cube([subwayInnerLength, subwayInnerWidth, overallHeight], center = true);
+        }
     }
+    
+    if (hasLocationPin) {
+        translate ([locationPinX, locationPinY, locationPinZ]) difference() {
+            cube([locationPinLength - 1, locationPinWidth - 1, locationPinHeight], center = true);
+            translate([0, 0, 1]) cube([locationPinLength - 5, locationPinWidth - 5, locationPinHeight - 2], center = true);
+            cylinder(h=locationPinHeight, d = locationScrewDiameter, center = true);
+        }
+    }
+    
+    
 
 }
 
@@ -154,22 +219,4 @@ module platformRamp(length, width, rampEndHeight = 2, rampEndThickness = 5) {
     
 }
 
-platformStraight(300, 75, hasLamp = true, hasAspectSignal = "left");
-
-// Modules required for platform 1
-
-// Modules required for platform 2/3
-
-// Modules required for platform 4
-platform4Width = 76;
-// x1
-//platformRamp(75, platform4Width);
-// x1
-//platformStraight(300, platform4Width, hasLamp = true, hasAspectSignal = "right");
-// x
-//platformStraight(300, platform4Width, hasLamp = true);
-
-
-
-
-//
+platformStraight(300, 75, hasLamp = true, hasAspectSignal = "", hasLocationPin = false, hasSubway = true);
