@@ -25,10 +25,10 @@ aspectSleeveOuterWidth = aspectSleeveInnerWidth + 4;
 aspectSleeveOuterLength = aspectSleeveInnerLength + 4;
 locationScrewDiameter = 4;
 
-module cubeWithVoid(width, depth, height) {
+module cubeWithVoid(width, depth, height, voidOffset = 0) {
     difference() {
         cube([width, depth, height], center = true);
-        rotate([0, 90, 0]) cylinder(h = depth, d = height * 0.75, center = true);
+        translate([0, voidOffset, 0]) rotate([0, 90, 0]) cylinder(h = depth, d = height * 0.75, center = true);
     }
 }
 
@@ -87,7 +87,7 @@ module platformStraight(
     widthAdjustmentLeft = 0, 
     widthAdjustmentRight = 0) {
     
-    leftAngle = widthAdjustmentLeft == 0 ? 0 : atan(widthAdjustmentLeft / platformLength);
+    leftAngle = (widthAdjustmentLeft == 0 ? 0 : atan(widthAdjustmentLeft / platformLength));
     leftLength = widthAdjustmentLeft == 0 ? platformLength : sqrt(pow(widthAdjustmentLeft, 2) + pow(platformLength, 2)) - 1;
     rightAngle = widthAdjustmentRight == 0 ? 0 : atan(widthAdjustmentRight / platformLength);
     rightLength = widthAdjustmentRight == 0 ? platformLength : sqrt(pow(widthAdjustmentRight, 2) + pow(platformLength, 2)) - 1;
@@ -109,7 +109,7 @@ module platformStraight(
     subwayPositionX = hasLamp ? subwayLength / 2 + 5 : 0;
     subwayPositionY = 0;
 
-    aspectAngle = hasAspectSignal == "left" ? leftAngle : rightAngle;
+    aspectAngle = hasAspectSignal == "left" ? leftAngle : -rightAngle;
     aspectSignalYPosition = hasAspectSignal == "left" ? (platformWidth - aspectSleeveOuterWidth) / 2 - 1 : - (platformWidth - aspectSleeveOuterWidth) / 2 + 1;
 
     difference() {
@@ -214,9 +214,40 @@ module platformRamp(length, width, rampEndHeight = 2, rampEndThickness = 5) {
         translate([length / 2, 0, 0]) rotate([180, 0, 180]) linear_extrude(width, center = true) {
             polygon(points = outerVoidPoints);
         } 
-        
     }
     
+    endVerticalReduction = 0;
+    translate([(length - platformSideWidth) / 2, 0, - endVerticalReduction / 2]) cubeWithVoid(platformSideWidth, width, overallHeight - endVerticalReduction);
+
 }
 
-platformStraight(300, 75, hasLamp = true, hasAspectSignal = "", hasLocationPin = false, hasSubway = true);
+module complexPlatformRamp(length, platformWidthLeft, rampEndWidthLeft, platformWidthRight, rampEndWidthRight, rampEndHeight = 2, rampEndThickness = 5) {
+    
+    rampFootprintPoints = [[-length / 2, -platformWidthLeft], [length / 2, -rampEndWidthLeft], [length / 2, rampEndWidthRight], [-length / 2, platformWidthRight]];
+    rampProfilePoints = [
+        [-length / 2, - overallHeight / 2], 
+        [length / 2, - overallHeight / 2], 
+        [length / 2, - (overallHeight / 2) + rampEndHeight], 
+        [-length / 2, overallHeight / 2]];
+    
+    intersection() {
+        union() {
+            translate([(platformSideWidth / 2), (platformWidthLeft - platformWidthRight) / 2, 0]) cube([length - platformSideWidth, platformWidthLeft + platformWidthRight, overallHeight], center = true);
+            translate([-(length - platformSideWidth) / 2, (platformWidthLeft - platformWidthRight) / 2, 0]) cubeWithVoid(platformSideWidth, platformWidthLeft + platformWidthRight, overallHeight, voidOffset = -(platformWidthLeft - platformWidthRight) / 2);
+        }
+        translate([0, (platformWidthLeft - platformWidthRight) / 2, 0]) linear_extrude(overallHeight, center = true) polygon(points = rampFootprintPoints);
+        translate([0, 0, 0]) rotate([90, 0, 0]) linear_extrude(platformWidthLeft + platformWidthRight, center = true) polygon(rampProfilePoints);
+    }
+
+}
+
+
+// Island platform
+translate([-75/2, 0, 0]) rotate([0, 0, 180]) complexPlatformRamp(75, 30, 15, 30, 15);
+translate([140/2, 0, 0]) platformStraight(platformLength = 140, platformWidth = 60, hasAspectSignal = "right", widthAdjustmentLeft = 10, widthAdjustmentRight = 10);
+translate([140 +(295/2), 0, 0]) platformStraight(platformLength = 295, platformWidth = 80);
+translate([140 +(295/2) + 295, 0, 0]) platformStraight(platformLength = 295, platformWidth = 80);
+translate([140 +(295/2) + (295 * 2), 0, 0]) platformStraight(platformLength = 295, platformWidth = 80);
+//end 1
+//end 2
+// ramp
