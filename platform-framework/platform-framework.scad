@@ -2,9 +2,6 @@
 // A 3D printed version of the internals of a cardboard platform, the idea being to make it more long lived and to only use
 // the outer sheets of a Metcalfe platform kit to create platforms of any length
 //
-// TODO on the current platform section
-// - Add optional area where a PCB could be fixed, include a cable strain relief
-//
 // Other components to add
 // - Create a platform ramp with wedge sides (bottom narrower than the top, but straight sided)
 // - Create a platform ramp where one or both sides can be curved, by specifying by a radius
@@ -24,6 +21,10 @@ aspectSleeveInnerLength = 21.5;
 aspectSleeveOuterWidth = aspectSleeveInnerWidth + 4;
 aspectSleeveOuterLength = aspectSleeveInnerLength + 4;
 locationScrewDiameter = 4;
+locationPinLength = 20;
+locationPinWidth = 20;
+locationPinHeight = overallHeight / 2;
+
 
 module cubeWithVoid(width, depth, height, voidOffset = 0) {
     difference() {
@@ -68,12 +69,32 @@ module subwayMount(subwayLength, subwayWidth, platformInnerWidth, supportWidth =
     
 }
 
-
 module aspectSignalMount() {
     difference() {
         cube([aspectSleeveOuterLength, aspectSleeveOuterWidth, overallHeight], center = true);
         cube([aspectSleeveInnerLength, aspectSleeveInnerWidth, overallHeight], center = true);
     }
+}
+
+module locationPin() {
+    
+    cube([locationPinLength + 4, locationPinWidth + 4, locationPinHeight], center = true);
+    
+    zipTiefWidth = 4;
+    strainReliefWidth = 1.5;
+    overallWidth = zipTiefWidth + (2 * strainReliefWidth);
+    
+    translate([0, -(locationPinWidth + 4) / 2, -(locationPinHeight - overallWidth) / 2]) rotate([90, 0, -90]) union() {
+    intersection() {
+        difference() {
+            cube(overallWidth, center = true);
+            cylinder(d=zipTiefWidth, h=overallWidth, center = true);
+        }
+        translate([overallWidth / 4, 0, 0]) cube([overallWidth / 2, overallWidth, overallWidth], center = true);
+    }
+    translate([overallWidth / 2, 0, (zipTiefWidth + strainReliefWidth) / 2]) rotate([90, 0, 0]) cylinder(d=strainReliefWidth, h=overallWidth, center = true);
+    translate([overallWidth / 2, 0, -(zipTiefWidth + strainReliefWidth) / 2]) rotate([90, 0, 0]) cylinder(d=strainReliefWidth, h=overallWidth, center = true);
+}
 }
 
 module platformStraight(
@@ -82,7 +103,6 @@ module platformStraight(
     hasLamp = false, 
     hasAspectSignal = "", 
     hasLocationPin = false, 
-    hasPcbMount = false, // TODO
     hasSubway = false,
     widthAdjustmentLeft = 0, 
     widthAdjustmentRight = 0) {
@@ -95,12 +115,10 @@ module platformStraight(
     supportSpacing = floor(tan(supportAngle) * platformInnerWidth);
     supportCount = (platformLength / 2) / supportSpacing;
 
-    locationPinLength = 20;
-    locationPinWidth = 20;
-    locationPinHeight = overallHeight / 2;
     locationPinX = platformLength / 4;
     locationPinY = ((platformWidth - locationPinWidth) / 2) - platformSideWidth - (widthAdjustmentLeft * 0.75) ;
     locationPinZ = -(overallHeight - locationPinHeight) / 2;
+        
         
     subwayInnerLength = 51;
     subwayLength = subwayInnerLength + 4;
@@ -161,7 +179,7 @@ module platformStraight(
             }
             
             if (hasLocationPin) {
-                translate ([locationPinX, locationPinY, locationPinZ]) cube([locationPinLength + 4, locationPinWidth + 4, locationPinHeight], center = true);
+                translate ([locationPinX, locationPinY, locationPinZ]) locationPin();
             }
 
             if (hasSubway) {
@@ -241,7 +259,11 @@ module complexPlatformRamp(length, platformWidthLeft, rampEndWidthLeft, platform
 
 }
 
+platformStraight(platformLength = 280, platformWidth = 75, hasLocationPin = true);
 
+
+
+/*
 // Island platform
 translate([-75/2, 0, 0]) rotate([0, 0, 180]) complexPlatformRamp(75, 30, 15, 30, 15);
 translate([140/2, 0, 0]) platformStraight(platformLength = 140, platformWidth = 60, hasAspectSignal = "right", widthAdjustmentLeft = 10, widthAdjustmentRight = 10);
@@ -251,3 +273,4 @@ translate([140 +(295/2) + (295 * 2), 0, 0]) platformStraight(platformLength = 29
 //end 1
 //end 2
 // ramp
+*/
